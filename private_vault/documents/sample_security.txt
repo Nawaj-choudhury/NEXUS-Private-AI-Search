@@ -1,0 +1,1 @@
+Cybersecurity protects local systems and information through access control, secure design, threat detection, monitoring, and incident response. Private search tools should also protect the files they index.

@@ -1,0 +1,1 @@
+Search engines help people find information by indexing documents, matching query terms, and ranking relevant results. Information retrieval systems become more useful when their sources and ranking behavior are understandable.

@@ -1,0 +1,1 @@
+Artificial intelligence systems use reasoning, perception, and learning to solve tasks that traditionally require human judgment. Responsible AI development values transparent evaluation and careful handling of data.

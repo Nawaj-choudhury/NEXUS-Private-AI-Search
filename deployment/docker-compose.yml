@@ -1,0 +1,44 @@
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: deployment/backend.Dockerfile
+    environment:
+      ENVIRONMENT: production
+      CORS_ORIGINS: "${NEXUS_PRODUCTION_CORS_ORIGINS:?Set the exact HTTPS frontend origin for production}"
+      COOKIE_SECURE: "true"
+      PRIVATE_VAULT_PATH: /data/private_vault/documents
+      DATABASE_PATH: /data/database/nexus.db
+      VECTOR_STORE_PATH: /data/database/vectors.db
+      GRAPH_STORE_PATH: /data/database/knowledge_graph.db
+      HF_HOME: /data/model-cache/huggingface
+      HF_HUB_CACHE: /data/model-cache/huggingface/hub
+      SENTENCE_TRANSFORMERS_HOME: /data/model-cache/sentence-transformers
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:1b}
+      CRAWLER_ALLOW_LOCALHOST: "false"
+    volumes:
+      - nexus_data:/data
+      - ../private_vault/documents:/data/private_vault/documents
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: deployment/frontend.Dockerfile
+      args:
+        VITE_API_BASE_URL: "${NEXUS_PRODUCTION_API_URL:?Set the HTTPS API origin reachable by the browser}"
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+
+volumes:
+  nexus_data:
