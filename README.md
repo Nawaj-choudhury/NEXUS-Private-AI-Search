@@ -1,28 +1,112 @@
-# NEXUS - Private AI Search Engine
+# NEXUS â€” Private AI Search Engine
 
-## Private AI Search
+A local-first AI search and research workspace for private documents and explicitly selected public web sources. NEXUS combines keyword retrieval, semantic embeddings, hybrid ranking, local reranking, citation-backed AI research, and a bounded knowledge graphâ€”all designed to keep private document content on your machine.
 
-NEXUS is a local-first search and research workspace for private documents and explicitly selected public web sources. It combines keyword retrieval, local semantic embeddings, hybrid ranking, local reranking, citation-backed research through Ollama, and a bounded knowledge graph without sending private content to cloud AI services.
+## Interface Preview
+
+### Search Workspace
+
+![NEXUS Search Workspace](docs/images/nexus-search.png)
+
+### Account Access
+
+![NEXUS Sign In](docs/images/nexus-signin.png)
+
+## Key Features
+
+- **Private Document Search:** Index and search TXT, Markdown, and PDF documents.
+- **User-Scoped Private Vaults:** Cookie-based authentication and per-user private document isolation.
+- **Hybrid Retrieval:** Combine BM25 keyword search with semantic retrieval.
+- **Local Reranking:** Use a CrossEncoder model to refine search result ordering.
+- **AI Research Mode:** Generate citation-backed research using a locally running Ollama model.
+- **Public Web Search:** Explicitly crawl selected public pages with bounded requests and safety checks.
+- **Knowledge Discovery:** Explore concepts and evidence-backed relationships in a local SQLite knowledge graph.
+- **Privacy-Focused Design:** Keep private document processing, embeddings, retrieval, reranking, graph storage, and research local.
+- **Developer Tooling:** API documentation, automated tests, security checks, evaluation scripts, and Docker deployment assets.
 
 ## Quick Start
+
+### 1. Prerequisites
+
+Install the following:
+
+- Python 3.12
+- Node.js and npm
+- Git
+- Ollama, if you want to use AI Research Mode
+
+### 2. Install dependencies
+
+Run these commands from the project root in PowerShell:
 
 ```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
+
 python -m pip install -r requirements.txt
-Push-Location frontend; npm install; Pop-Location
+
+Push-Location frontend
+npm install
+Pop-Location
+
 Copy-Item .env.example .env
+
 python -m scripts.setup
 python -m scripts.prepare_models
 python -m scripts.demo_setup
 ```
 
-Start the backend with `python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000` and the frontend with `Push-Location frontend; npm run dev; Pop-Location`. Visit `http://localhost:5173`.
+Model preparation downloads the required model files into the local cache. The initial setup may take time and requires an internet connection.
+
+### 3. Start the backend
+
+Open a terminal at the project root:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+$env:PYTHONPATH="."
+
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+```
+
+### 4. Start the frontend
+
+Open a second terminal:
+
+```powershell
+cd frontend
+npm run dev
+```
+
+Open the local frontend in your browser:
+
+http://localhost:5173
+
+Keep both development terminals running while using the application.
+
+## Model Setup
+
+NEXUS uses the following default models:
+
+| Component | Model |
+| --- | --- |
+| Embeddings | `sentence-transformers/all-MiniLM-L6-v2` |
+| Reranker | `cross-encoder/ms-marco-MiniLM-L-6-v2` |
+| Local LLM | Ollama model `llama3.2:1b` by default |
+
+Prepare and verify local models:
+
+```powershell
+python -m scripts.prepare_models
+python -m scripts.verify_models
+```
+
+The configured local Ollama model must also be installed and available for AI Research Mode. Model preparation and runtime inference are separate operations.
 
 ## Documentation
 
-- [Deployment](docs/DEPLOYMENT.md)
-- [API](docs/API.md)
+- [Deployment Guide](docs/DEPLOYMENT.md)
+- [API Documentation](docs/API.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Privacy](docs/PRIVACY.md)
 - [Security](docs/SECURITY.md)
@@ -31,122 +115,72 @@ Start the backend with `python -m uvicorn backend.app.main:app --host 127.0.0.1 
 - [Testing](docs/TESTING.md)
 - [Development](docs/DEVELOPMENT.md)
 
-## Features
+## How NEXUS Works
 
-- Private document indexing for `.txt`, `.md`, and `.pdf`
-- Cookie-based registration/login and per-user private vault isolation
-- BM25, semantic, hybrid, and local CrossEncoder retrieval
-- Private, public-web, and combined source modes
-- Local Ollama research with citations and evidence validation
-- Controlled crawler with robots, SSRF, redirect, size, depth, and page limits
-- Local SQLite knowledge graph with bounded discovery
-- Production-style health/readiness endpoints, Docker assets, and CI
+### Document Ingestion and Indexing
 
-## Model Setup
+NEXUS supports private document indexing for `.txt`, `.md`, and `.pdf` files.
 
-Embedding: `sentence-transformers/all-MiniLM-L6-v2`
+The indexing pipeline extracts text, cleans and chunks documents, and stores indexing metadata and chunk text in local SQLite storage. Unchanged files can be skipped during re-indexing; changed and deleted files are handled by the indexing workflow.
 
-Reranker: `cross-encoder/ms-marco-MiniLM-L-6-v2`
+The bundled demonstration documents are located in:
 
-LLM: configured local Ollama model, default `llama3.2:1b`
-
-Model acquisition is explicit:
-
-```powershell
-python -m scripts.prepare_models
-python -m scripts.verify_models
+```text
+private_vault/documents/
 ```
 
-Preparation populates the local cache. Runtime loads from that cache and private content stays local.
+Authenticated users' documents are stored beneath their user-specific vault directories:
 
-## Demo
-
-```powershell
-python -m scripts.demo_setup
-python -m scripts.demo_check
+```text
+private_vault/documents/users/<user_id>/documents/
 ```
 
-The demo uses only the original sample files under `private_vault/documents/` and does not print document contents.
+Rebuild the authenticated user's index through:
 
-## Testing and CI
-
-```powershell
-python -m unittest discover -s tests -p "test_*.py" -q
-python -m scripts.security_check
-python -m scripts.performance_check
-Push-Location frontend; npm run build; Pop-Location
+```text
+POST /api/index/rebuild
 ```
 
-GitHub Actions runs Python compilation/tests/security checks and the frontend build without downloading model weights during standard CI.
-
-## Docker
-
-Compose runs the backend in production mode and requires an exact HTTPS frontend origin and browser-reachable HTTPS API origin. Replace these placeholders with the origins served by your trusted TLS reverse proxy:
-
-```powershell
-$env:NEXUS_PRODUCTION_CORS_ORIGINS='["https://search.example.com"]'
-$env:NEXUS_PRODUCTION_API_URL='https://api.example.com'
-```
-
-```powershell
-docker compose -f deployment/docker-compose.yml up --build -d
-```
-
-The Compose setup exposes frontend port 8080 and backend port 8000 for a TLS reverse proxy, preserves local runtime data, and expects Ollama on the host by default. The plain HTTP mappings are not a production TLS endpoint. See [Deployment](docs/DEPLOYMENT.md).
-
-## Project Structure
-
-`backend/` FastAPI application, local authentication, and services; `frontend/` React/Vite UI; `retrieval/`, `reranker/`, and `search_engine/` ranking pipeline; `indexer/` per-user private ingestion; `crawler/` bounded public web ingestion; `knowledge_graph/` user-scoped graph storage and queries; `database/` SQLite repositories; `ai_engine/` local research; `scripts/` setup, verification, audit, and benchmark commands; `tests/` regression suite.
-
-## Known Limitations and Future Work
-
-Research depends on a locally installed and available Ollama model. Model preparation is intentionally separate from runtime. The crawler is bounded and is not a general web indexer. Evaluation uses a small project-specific dataset. Hosted inference and cloud deployment infrastructure are not included.
-
-## License
-
-License: not yet specified.
-
-NEXUS is a privacy-first AI search engine project designed to help people search, understand, and work with information while keeping their data under their control.
-
-The project will be developed in multiple phases, beginning with a stable backend and frontend foundation. Planned modules include the search engine, web crawler, document indexer, retrieval and reranking layers, AI research layer, private knowledge vault, knowledge graph, evaluation tooling, and deployment infrastructure.
-
-The architecture is intentionally modular so each capability can be developed, tested, and improved independently as the project grows.
-
-## Current Functionality
-
-NEXUS supports local private document search for `.txt`, `.md`, and `.pdf` files. Each account has a user-scoped vault and authenticated private retrieval; public WEB search remains available without an account. NEXUS cleans and chunks documents, stores local indexing metadata and chunk text in SQLite, calculates configurable BM25 scores, and exposes ranked results through `GET /api/search?q=<query>` for the React frontend.
-
-The bundled public demo documents live in `private_vault/documents/`. Authenticated user documents are indexed from `private_vault/documents/users/<user_id>/documents/`; rebuild the current user's local index through `POST /api/index/rebuild`.
+The indexing CLI is also available:
 
 ```powershell
 python -m indexer.cli
 ```
 
-Re-indexing skips unchanged files, updates changed files, and removes deleted files. Source documents remain local, and the API exposes filenames rather than absolute filesystem paths.
+Private source responses expose filenames rather than absolute filesystem paths.
 
-## Two-Stage Retrieval
+### Two-Stage Retrieval
 
-NEXUS uses a two-stage retrieval flow:
+NEXUS separates candidate retrieval from result reranking.
 
-Stage 1: High-recall retrieval
+**Stage 1 â€” Candidate retrieval**
 
-Stage 2: High-precision reranking
+Retrieve relevant candidates using keyword, semantic, or hybrid retrieval.
 
-The reranking stage is intentionally separate from the normal API and UI logic. It is local-only, does not send private content to a cloud model, and can safely fall back to the original hybrid ordering if the local reranker is unavailable.
+**Stage 2 â€” Reranking**
 
-Use `GET /api/search?q=machine%20learning&mode=hybrid&rerank=true` to enable second-stage reranking.
+Optionally refine the candidate ordering using the local CrossEncoder reranker. If the reranker is unavailable, the search pipeline can fall back to the original hybrid ordering.
 
-Run the retrieval benchmark after indexing:
+Example request:
 
-```powershell
-python -m evaluation.run
+```text
+GET /api/search?q=machine%20learning&mode=hybrid&rerank=true
 ```
 
-## AI Research Mode
+Available retrieval approaches include:
 
-Search retrieves ranked private documents. Research retrieves evidence, builds a bounded private context, sends that context only to the local Ollama service, generates a cited synthesis, validates the citations, and returns evidence and related topics.
+- BM25 keyword retrieval
+- Semantic retrieval using local embeddings
+- Hybrid retrieval
+- Optional CrossEncoder reranking
 
-The research endpoint is:
+### AI Research Mode
+
+Search returns ranked sources. Research uses retrieved evidence to generate a cited synthesis through the configured local Ollama model.
+
+The research workflow builds a bounded context from retrieved sources, generates a response, validates citation references, and returns supporting evidence and related topics.
+
+Endpoint:
 
 ```text
 POST /api/research
@@ -155,76 +189,227 @@ POST /api/research
 Example request:
 
 ```json
-{"query":"How does machine learning learn from data?","mode":"hybrid","top_k":5}
+{
+  "query": "How does machine learning learn from data?",
+  "mode": "hybrid",
+  "top_k": 5
+}
 ```
 
-Research uses the configured local Ollama model and never forwards private context to a cloud LLM. When evidence is absent, the local model is not called. Unsupported citation identifiers cause the generated answer to be withheld.
+Research is designed to use local inference for private context. If relevant evidence is unavailable, the application can return an evidence limitation rather than asking the model to answer without retrieved support.
 
-## Public Web Search
+### Public Web Search
 
-Public web ingestion is explicit and bounded through `POST /api/crawl`. NEXUS validates URLs, blocks local/private destinations by default, checks `robots.txt`, limits pages/depth/response size, extracts HTML text, and stores public pages in the local index with `source_type=public_web`. It does not perform autonomous or large-scale crawling.
+Public web ingestion is explicit and bounded. It is available through:
+
+```text
+POST /api/crawl
+```
+
+Example request:
+
+```json
+{
+  "url": "https://example.com/article",
+  "max_pages": 5,
+  "max_depth": 1
+}
+```
+
+The crawler validates URLs and redirects, blocks local and private destinations by default, checks `robots.txt`, and applies page, depth, response-size, and timeout limits.
+
+NEXUS is not a general-purpose internet crawler or a continuously maintained web index.
 
 Search supports three source modes:
 
-- `private`: only the authenticated user's private documents
-- `web`: only explicitly crawled public pages
-- `all`: authenticated combined retrieval over the current user's private documents and public pages, with provenance preserved
+- `private` â€” the authenticated user's private documents.
+- `web` â€” explicitly crawled public pages.
+- `all` â€” combined retrieval over the authenticated user's private documents and indexed public pages.
 
-Every mode except public `web` requires a valid session. Registration and login issue an HttpOnly session cookie; session tokens are not stored in browser storage. See [API](docs/API.md) for auth endpoints and response behavior.
+Public web search can be used without an account. Private and combined retrieval require a valid session.
 
-Example crawl request:
+Private and public results preserve their source provenance. Private results avoid exposing local filesystem paths.
 
-```json
-{"url":"https://example.com/article","max_pages":5,"max_depth":1}
-```
+### Knowledge Discovery
 
-Public results expose their title, domain, and verified fetched URL. Private results expose a filename only; local filesystem paths are never returned. Both public and private content are indexed and embedded locally. Public citations are generated only from fetched source metadata, while private citations remain path-free.
-
-## Security & Privacy
-
-NEXUS keeps private documents on the local machine: extraction, indexing, embeddings, retrieval, reranking, graph storage, and research through Ollama are local operations. Built-in authentication uses server-side sessions and user-scoped vault/index records; the browser receives only an HttpOnly cookie. Private content is not sent to public crawler URLs, hosted AI APIs, cloud vector stores, or analytics. Hugging Face access is limited to the explicit model-preparation command; runtime loads are local-only.
-
-The backend enforces query, research, graph, crawl, document-size, page-count, depth, timeout, and response-size limits. Private ingestion allowlists `.txt`, `.md`, and `.pdf`, skips symlinks, and only discovers files beneath the configured vault. The crawler validates every URL and redirect, blocks local/private destinations by default, respects robots policy, and uses bounded requests. API responses use safe structured errors and do not expose stack traces, absolute paths, or private content. Health is high-level; readiness separately reports cached model and Ollama availability.
-
-For production, set `ENVIRONMENT=production`, `COOKIE_SECURE=true`, and explicit HTTPS `CORS_ORIGINS`. Wildcard CORS and localhost origins are rejected in production. Keep `.env` ignored and leave `CRAWLER_ALLOW_LOCALHOST=false`.
-
-Run the local static audit:
-
-```powershell
-python -m scripts.security_check
-```
-
-## Knowledge Discovery
-
-NEXUS can build a local knowledge graph from indexed chunks:
+NEXUS builds a local knowledge graph from indexed content:
 
 ```text
-Search -> Results -> Concepts -> Relationships -> Interactive Exploration
+Search â†’ Results â†’ Concepts â†’ Relationships â†’ Exploration
 ```
 
-Concepts are extracted deterministically from meaningful local phrases. `MENTIONS` edges connect source nodes to concepts, while `RELATED_TO` edges are created only when concepts co-occur in the same indexed chunk. Each relationship records its method, weight, and evidence count. Graph data is stored in `database/knowledge_graph.db` and is never sent to a cloud graph or AI service.
+Concepts are extracted deterministically from meaningful local phrases.
 
-Run a graph rebuild explicitly with `POST /api/graph/rebuild`. The graph API supports bounded concept neighborhoods, related concepts, supporting sources, and graph search. Private source nodes expose titles and document IDs only. Public web nodes retain only verified public URL and domain metadata.
+- `MENTIONS` edges connect source nodes to concepts.
+- `RELATED_TO` edges represent concepts that co-occur within an indexed chunk.
+- Relationships record their extraction method, weight, and evidence count.
 
-## Performance
+Graph data is stored in:
 
-Run the controlled benchmark with:
+```text
+database/knowledge_graph.db
+```
+
+Rebuild the graph through:
+
+```text
+POST /api/graph/rebuild
+```
+
+The graph API supports bounded concept neighborhoods, related concepts, supporting sources, and graph search.
+
+Private source nodes expose limited metadata rather than absolute filesystem paths.
+
+## Evaluation and Results
+
+NEXUS includes a project-specific retrieval evaluation workflow to compare ranking approaches.
+
+Prepare the sample index and local models, then run:
+
+```powershell
+python -m evaluation.run
+```
+
+The evaluation covers retrieval methods such as BM25, semantic retrieval, hybrid retrieval, and hybrid retrieval with reranking.
+
+The main metrics are:
+
+| Metric | Meaning |
+| --- | --- |
+| Precision | Fraction of retrieved results that are relevant |
+| Recall | Fraction of relevant items retrieved |
+| MRR | Reciprocal rank of the first relevant result |
+| NDCG | Ranking quality that accounts for the positions of relevant results |
+
+**Evaluation scope:** The dataset is small and project-specific, based on sample documents. Results are useful for regression testing and comparing configurations; they should not be interpreted as proof of general-world search quality.
+
+Run the command above to obtain the current results. See [Evaluation](docs/EVALUATION.md) for the evaluation setup and recorded results.
+
+## Performance Testing
+
+Run the controlled performance benchmark:
 
 ```powershell
 python -m scripts.performance_check
 ```
 
-It measures keyword, semantic, hybrid, reranked search, graph rebuild, and graph query using synthetic content and temporary local storage. It does not read private documents or create broad internet traffic. Measurements are workload- and machine-specific; the command prints the actual values from each run.
+It measures keyword, semantic, hybrid, and reranked search, along with graph rebuild and graph query operations using synthetic content and temporary local storage.
 
-Back up `private_vault/documents/`, `database/nexus.db`, `database/vectors.db`, and `database/knowledge_graph.db` together. The source documents are authoritative and the indexes can be rebuilt locally. Never commit `.env` or private data.
+Measurements depend on the workload and machine. Use the actual output from each run when reporting performance.
 
-## NEXUS Interface
+## Testing and Continuous Integration
 
-The interface is organized around a premium product flow rather than a generic dashboard shell:
+Run the project tests and checks:
 
-- **Search** returns ranked private/web sources with provenance and retrieval state.
-- **Research** presents a grounded synthesis with visible citations, evidence, and related topics.
-- **Knowledge map** turns the local graph into a bounded, selectable SVG exploration workspace.
-- **Private vault** remains a quiet local-status indicator rather than an exposed filesystem surface.
+```powershell
+python -m unittest discover -s tests -p "test_*.py" -q
 
-The frontend uses centralized CSS design tokens, warm editorial typography, dark/light themes, and a restrained product aesthetic. `Cmd/Ctrl + K` opens the command palette, source scope and retrieval mode remain connected to the existing backend, and the layout adapts cleanly from desktop to mobile without sacrificing legibility. The result is a recognizably premium NEXUS interface that keeps the existing search and graph APIs intact while making the product feel intentional and cohesive.
+python -m scripts.security_check
+python -m scripts.performance_check
+
+Push-Location frontend
+npm run build
+Pop-Location
+```
+
+GitHub Actions is configured to run Python compilation, tests, security checks, and the frontend build without downloading model weights during standard CI.
+
+## Security and Privacy
+
+NEXUS is designed around local-first private document processing.
+
+- Private document extraction, indexing, embeddings, retrieval, and reranking run locally.
+- Private research context is intended for the configured local Ollama service rather than a hosted LLM API.
+- Private document storage and indexing records are scoped by user.
+- Browser sessions use an HttpOnly cookie rather than storing session tokens in browser storage.
+- Private document indexing allows `.txt`, `.md`, and `.pdf` files, skips symlinks, and restricts discovery to the configured vault.
+- Public crawling is explicit and bounded, with URL and redirect validation and protections against local or private destinations by default.
+- API responses are designed to avoid exposing absolute filesystem paths, private document contents, or stack traces.
+- Health and readiness endpoints provide operational status without intentionally exposing private document contents.
+
+Hugging Face access is used during explicit model preparation. Runtime model loading is intended to use the local cache.
+
+Run the local security audit:
+
+```powershell
+python -m scripts.security_check
+```
+
+For production deployments, configure the environment, secure cookies, and explicit HTTPS CORS origins. Keep `.env` ignored by Git and leave `CRAWLER_ALLOW_LOCALHOST=false` unless a deliberate, reviewed configuration requires otherwise.
+
+These are project design goals and implemented controls, not a guarantee that every deployment is secure. Review the [Security](docs/SECURITY.md) and [Privacy](docs/PRIVACY.md) documentation before exposing an instance to other users or networks.
+
+## Docker Deployment
+
+The Compose configuration is located at:
+
+```text
+deployment/docker-compose.yml
+```
+
+Production mode expects explicit HTTPS origins served through a trusted TLS reverse proxy. Configure the actual frontend and API origins for your deployment:
+
+```powershell
+$env:NEXUS_PRODUCTION_CORS_ORIGINS='["https://search.example.com"]'
+$env:NEXUS_PRODUCTION_API_URL='https://api.example.com'
+```
+
+Replace the example domains with your real origins, then run:
+
+```powershell
+docker compose -f deployment/docker-compose.yml up --build -d
+```
+
+The Compose setup exposes frontend port `8080` and backend port `8000` for reverse-proxy integration, preserves local runtime data, and expects Ollama on the host by default.
+
+The HTTP port mappings are not themselves a production TLS endpoint. See the [Deployment Guide](docs/DEPLOYMENT.md) before deploying.
+
+## Project Structure
+
+```text
+backend/          FastAPI application, authentication, and services
+frontend/         React and Vite user interface
+retrieval/        Retrieval components
+reranker/         Local reranking
+search_engine/    Search orchestration
+indexer/          Private document ingestion and indexing
+crawler/          Bounded public web ingestion
+knowledge_graph/  Graph storage and queries
+database/         SQLite repositories and local data
+ai_engine/        Local AI research and grounding
+scripts/          Setup, verification, audit, and benchmark tools
+tests/            Automated regression tests
+docs/             Technical documentation
+```
+
+## Known Limitations
+
+- AI Research Mode requires an installed and available local Ollama model.
+- Model preparation is separate from runtime inference.
+- Public crawling is explicitly initiated and bounded; NEXUS is not a general web indexer.
+- Evaluation uses a small project-specific dataset.
+- Performance measurements depend on the local hardware and workload.
+- Hosted inference and managed cloud deployment infrastructure are not included.
+
+## Data and Local Backups
+
+Back up the source documents and associated local databases together when preserving a working instance:
+
+```text
+private_vault/documents/
+database/nexus.db
+database/vectors.db
+database/knowledge_graph.db
+```
+
+Source documents are authoritative; indexes can be rebuilt locally. Never commit `.env`, session secrets, private documents, or personal database contents to the repository.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+## Project Overview
+
+NEXUS is a privacy-focused AI/ML engineering project exploring local document retrieval, hybrid ranking, evidence-grounded research, secure document access, and knowledge discovery in a single application.
+
+Its architecture separates ingestion, retrieval, reranking, research, graph operations, storage, and the frontend so that these components can be tested and improved independently.
