@@ -14,7 +14,7 @@ CLAUSE_SPLIT_PATTERN = re.compile(
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
 NEGATION_PATTERN = re.compile(r"\b(?:no|not|never|without|cannot|can't|isn't|aren't|wasn't|weren't|doesn't|don't|didn't|won't|wouldn't|shouldn't|lack|lacks|lacking)\b", re.IGNORECASE)
 UNSUPPORTED_CLAIM_TEXT = "The available indexed evidence does not provide enough information to establish this claim."
-SUPPORTED_OVERLAP = 0.8
+SUPPORTED_OVERLAP = 0.6
 PARTIAL_OVERLAP = 0.3
 
 STOPWORDS = frozenset(
