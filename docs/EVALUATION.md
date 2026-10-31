@@ -1,4 +1,5 @@
-﻿# Evaluation
+
+# Evaluation
 
 NEXUS includes a small, project-specific retrieval benchmark for regression checks and comparing retrieval configurations. It is not evidence of general-world search quality.
 
